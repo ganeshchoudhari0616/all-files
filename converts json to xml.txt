@@ -1,0 +1,59 @@
+#include <iostream>
+#include <rapidjson/document.h>
+#include <rapidxml/rapidxml.hpp>
+#include <rapidxml/rapidxml_print.hpp>
+
+using namespace rapidjson;
+using namespace rapidxml;
+
+// Function to recursively convert a JSON Value to XML
+void jsonToXml(xml_document<>& doc, xml_node<>* parent, const Value& value) {
+    if (value.IsObject()) {
+        for (Value::ConstMemberIterator itr = value.MemberBegin(); itr != value.MemberEnd(); ++itr) {
+            xml_node<>* node = doc.allocate_node(node_element, itr->name.GetString());
+            parent->append_node(node);
+            jsonToXml(doc, node, itr->value);
+        }
+    } else if (value.IsArray()) {
+        for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+            xml_node<>* node = doc.allocate_node(node_element, "item");
+            parent->append_node(node);
+            jsonToXml(doc, node, *itr);
+        }
+    } else if (value.IsString()) {
+        parent->value(value.GetString());
+    } else if (value.IsNumber()) {
+        parent->value(std::to_string(value.GetDouble()).c_str());
+    } else if (value.IsBool()) {
+        parent->value(value.GetBool() ? "true" : "false");
+    } else if (value.IsNull()) {
+        // Handle null values
+        parent->value("null");
+    }
+}
+
+int main() {
+    const char* json = R"(
+        {
+            "name": "John Doe",
+            "age": 30,
+            "city": "New York",
+            "skills": ["C++", "JavaScript", "Python"]
+        }
+    )";
+
+    Document document;
+    document.Parse(json);
+
+    xml_document<> xml_doc;
+    xml_node<>* xml_root = xml_doc.allocate_node(node_element, "root");
+    xml_doc.append_node(xml_root);
+
+    jsonToXml(xml_doc, xml_root, document);
+
+    std::string xml_string;
+    print(std::back_inserter(xml_string), xml_doc, 0);
+    std::cout << xml_string << std::endl;
+
+    return 0;
+}
